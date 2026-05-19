@@ -177,12 +177,13 @@ function setTooltipContent(commit, idx) {
 
 function positionTooltip(x, y) {
   // Place to the lower-right of the cursor; flip if it'd run off the viewport.
-  const offset = 12;
+  const offsetX = 28;
+  const offsetY = 20;
   const r = tooltip.getBoundingClientRect();
-  let left = x + offset;
-  let top = y + offset;
-  if (left + r.width > window.innerWidth) left = x - r.width - offset;
-  if (top + r.height > window.innerHeight) top = y - r.height - offset;
+  let left = x + offsetX;
+  let top = y + offsetY;
+  if (left + r.width > window.innerWidth) left = x - r.width - offsetX;
+  if (top + r.height > window.innerHeight) top = y - r.height - offsetY;
   tooltip.style.left = `${left}px`;
   tooltip.style.top = `${top}px`;
 }

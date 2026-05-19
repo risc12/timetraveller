@@ -137,7 +137,10 @@ pre {
 
 /* Every line carries a blame; clicking jumps to the commit that introduced it. */
 .line[data-blame] { cursor: pointer; }
-.line[data-blame]:hover { box-shadow: inset 2px 0 0 var(--fg); }
+.line[data-blame]:hover {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--fg);
+}
 
 #tooltip {
   position: fixed;
