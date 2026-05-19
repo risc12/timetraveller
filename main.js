@@ -11,14 +11,23 @@ let commits = [];
 let indexBySha = new Map();
 let totalCommits = 0;
 
-function parseLocation(pathname) {
+function parseLocation() {
   // GitHub-shaped: /:owner/:repo/blob/:ref/*path
+  // Try the hash first (for embedded deploys like /timetraveller/#/owner/repo/blob/ref/path),
+  // then fall back to pathname (for standalone deploys with SPA fallback).
   // Refs containing slashes (e.g. "release/v1") aren't supported here — same caveat as git-history.
-  const m = pathname.match(/^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/);
+  const re = /^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/;
+  const hashPath = location.hash.replace(/^#/, '');
+  const m = hashPath.match(re) || location.pathname.match(re);
   if (!m) return null;
   const [, owner, repo, ref, path] = m;
   return { owner, repo, ref, path };
 }
+
+// Pick routing mode once at startup: if the initial pathname parses, we're in standalone/SPA-fallback
+// mode and should keep pushing pathnames; otherwise (embedded under a subpath, or landing page) we
+// route via the hash so deep links survive on GitHub Pages without an SPA rewrite.
+const usesHashRouting = !/^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/.test(location.pathname);
 
 const escape = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -104,7 +113,7 @@ function renderLanding() {
 }
 
 async function run() {
-  const loc = parseLocation(location.pathname);
+  const loc = parseLocation();
   if (loc) await renderColumns(loc);
   else renderLanding();
 }
@@ -220,10 +229,12 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   const url = new FormData(e.target).get('url');
   // Trust the browser's url-validation on the input. The path is what we route on.
-  history.pushState(null, '', new URL(url).pathname);
+  const targetPath = new URL(url).pathname;
+  history.pushState(null, '', usesHashRouting ? `#${targetPath}` : targetPath);
   run();
 });
 
 addEventListener('popstate', run);
+addEventListener('hashchange', run);
 
 await run();
