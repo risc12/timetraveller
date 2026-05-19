@@ -59,6 +59,12 @@ body {
 
 #minimap button:hover { opacity: 0.7; }
 #minimap button[aria-current] { opacity: 1; background: var(--fg); }
+/* Pip for the commit whose blame matches the line being hovered. */
+#minimap button.hint {
+  opacity: 1;
+  background: var(--fg);
+  transform: scaleY(1.5);
+}
 
 article {
   flex: 0 0 min(820px, 92vw);
@@ -128,6 +134,28 @@ pre {
 
 .line[data-diff="add"]    { background: var(--add); }
 .line[data-diff="remove"] { background: var(--remove); }
+
+/* Every line carries a blame; clicking jumps to the commit that introduced it. */
+.line[data-blame] { cursor: pointer; }
+.line[data-blame]:hover { box-shadow: inset 2px 0 0 var(--fg); }
+
+#tooltip {
+  position: fixed;
+  z-index: 10;
+  max-width: 360px;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font: 13px/1.4 system-ui, sans-serif;
+  pointer-events: none;
+}
+
+#tooltip strong { display: block; margin-bottom: 0.15rem; }
+#tooltip small { color: var(--muted); }
+#tooltip code { font-family: ui-monospace, monospace; }
 
 #timeline:has(> form) {
   display: grid;

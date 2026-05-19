@@ -14,27 +14,47 @@ function langFor(path) {
   return LANG_BY_EXT[ext] ?? 'text';
 }
 
-// Walk the diff chunks once, emit lines with +/-/space prefix and a parallel tag array.
-// The prefix is what makes the Shiki transformer's job trivial; the tags drive the CSS.
-function buildPrefixed(prev, curr) {
+// Walk the diff chunks once, emit lines with +/-/space prefix and parallel tag + blame arrays.
+// The prefix is what makes the Shiki transformer's job trivial; the tags drive the diff CSS;
+// the blames drive the click-to-jump-to-the-commit-that-introduced-this-line behavior.
+//
+// For each line we emit:
+//   '+' (added in this commit) → blame = current commit's sha (= blameNew[newIdx])
+//   ' ' (unchanged)            → blame = blameNew[newIdx] (precomputed walk down the history)
+//   '-' (removed in this commit, shown for context) → blame = blameOld[oldIdx]
+function buildPrefixed(prev, curr, blameOld, blameNew) {
   const parts = diffLines(prev, curr);
   const lines = [];
   const tags = [];
+  const blames = [];
+  let oldIdx = 0;
+  let newIdx = 0;
   for (const part of parts) {
     const chunkLines = part.value.replace(/\n$/, '').split('\n');
-    const prefix = part.added ? '+' : part.removed ? '-' : ' ';
     const tag = part.added ? 'add' : part.removed ? 'remove' : null;
+    const prefix = part.added ? '+' : part.removed ? '-' : ' ';
     for (const l of chunkLines) {
       lines.push(prefix + l);
       tags.push(tag);
+      if (part.added) {
+        blames.push(blameNew[newIdx]);
+        newIdx++;
+      } else if (part.removed) {
+        blames.push(blameOld ? blameOld[oldIdx] : null);
+        oldIdx++;
+      } else {
+        blames.push(blameNew[newIdx]);
+        oldIdx++;
+        newIdx++;
+      }
     }
   }
-  return { source: lines.join('\n'), tags };
+  return { source: lines.join('\n'), tags, blames };
 }
 
 // preprocess: strip the prefix so the grammar sees clean source.
-// line: stamp data-diff so CSS can color it.
-function diffTransformer(tags) {
+// line: stamp data-diff and data-blame so CSS can color and JS can route clicks.
+function diffTransformer(tags, blames) {
   return {
     name: 'timetraveller-diff',
     preprocess(code) {
@@ -42,7 +62,9 @@ function diffTransformer(tags) {
     },
     line(node, idx) {
       const tag = tags[idx - 1];
+      const blame = blames[idx - 1];
       if (tag) node.properties['data-diff'] = tag;
+      if (blame) node.properties['data-blame'] = blame;
     },
   };
 }
@@ -55,21 +77,21 @@ function getHL() {
 
 const escape = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-export async function renderVersionColumn(prev, curr, commit, path) {
+export async function renderVersionColumn({ prev, curr, commit, path, blameOld, blameNew }) {
   const hl = await getHL();
   const lang = langFor(path);
   if (lang !== 'text' && !hl.getLoadedLanguages().includes(lang)) {
     await hl.loadLanguage(lang);
   }
-  const { source, tags } = buildPrefixed(prev, curr);
+  const { source, tags, blames } = buildPrefixed(prev, curr, blameOld, blameNew);
   const code = hl.codeToHtml(source, {
     lang,
     // Dual themes with defaultColor:false emit both as CSS variables; style.css picks per scheme.
     themes: { light: 'github-light', dark: 'github-dark' },
     defaultColor: false,
-    transformers: [diffTransformer(tags)],
+    transformers: [diffTransformer(tags, blames)],
   });
-  return `<article>
+  return `<article data-sha="${escape(commit.sha)}">
     <header>
       <a href="${escape(commit.url)}" target="_blank" rel="noopener">${commit.sha.slice(0, 7)}</a>
       <time datetime="${escape(commit.date)}">${commit.date.slice(0, 10)}</time>
