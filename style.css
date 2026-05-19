@@ -1,0 +1,145 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --rule: #e5e7eb;
+  --muted: #6b7280;
+  --add: rgba(46, 160, 67, 0.15);
+  --remove: rgba(248, 81, 73, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --rule: #30363d;
+    --muted: #9ca3af;
+    --add: rgba(46, 160, 67, 0.4);
+    --remove: rgba(248, 81, 73, 0.4);
+  }
+}
+
+body {
+  margin: 0;
+  font: 14px/1.5 system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100vh;
+}
+
+#timeline {
+  display: flex;
+  overflow-x: auto;
+  min-height: 0;
+  scroll-snap-type: x mandatory;
+}
+
+#minimap {
+  display: flex;
+  gap: 2px;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--rule);
+  background: var(--bg);
+}
+
+#minimap button {
+  flex: 1;
+  min-width: 4px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: var(--muted);
+  opacity: 0.35;
+  cursor: pointer;
+  transition: opacity 0.12s, background 0.12s;
+}
+
+#minimap button:hover { opacity: 0.7; }
+#minimap button[aria-current] { opacity: 1; background: var(--fg); }
+
+article {
+  flex: 0 0 min(820px, 92vw);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--rule);
+  overflow: hidden;
+}
+
+/* Newest column sits at the right end of the timeline; snapping its end (rather than start) to
+   the viewport's end keeps it visible on initial load and on right-edge scrolls, without needing
+   a phantom trailing spacer that would balloon on wide screens. */
+article:last-child { scroll-snap-align: end; }
+
+article > header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg);
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  column-gap: 0.75rem;
+  align-items: baseline;
+}
+
+header a {
+  font-family: ui-monospace, monospace;
+  color: var(--fg);
+}
+
+header time { color: var(--muted); }
+header address { font-style: normal; color: var(--muted); }
+
+header p {
+  grid-column: 1 / -1;
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+pre {
+  margin: 0;
+  padding: 1rem;
+  font: 13px/1.55 ui-monospace, monospace;
+  /* Wrap long lines; vertical-scroll only. Pairs with the cross-column scroll sync in main.js. */
+  white-space: pre-wrap;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+}
+
+/* Shiki emits both themes as CSS variables when defaultColor is false; we pick one per scheme.
+   Background goes on the outer <pre> only — putting it on every span would paint over the
+   per-line diff tints, since token spans nest inside `.line` spans. */
+.shiki {
+  background-color: var(--shiki-light-bg);
+  color: var(--shiki-light);
+}
+.shiki span { color: var(--shiki-light); }
+
+@media (prefers-color-scheme: dark) {
+  .shiki {
+    background-color: var(--shiki-dark-bg);
+    color: var(--shiki-dark);
+  }
+  .shiki span { color: var(--shiki-dark); }
+}
+
+.line[data-diff="add"]    { background: var(--add); }
+.line[data-diff="remove"] { background: var(--remove); }
+
+#timeline:has(> form) {
+  display: grid;
+  place-items: center;
+}
+
+form {
+  display: grid;
+  gap: 0.75rem;
+  width: min(560px, 90vw);
+}
+
+form label { display: grid; gap: 0.25rem; }
+form input, form button { font: inherit; padding: 0.5rem 0.75rem; }
+form button { cursor: pointer; justify-self: start; }
