@@ -77,11 +77,24 @@ function getHL() {
 
 const escape = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+// Shiki's tokenizer is synchronous and runs on the main thread, so very large files
+// (think 10k+ lines × 100 commits) pin the browser for minutes. For these outliers
+// we drop highlighting and render as plaintext — diff/blame coloring still works.
+const HIGHLIGHT_MAX_BYTES = 200_000;
+const HIGHLIGHT_MAX_LINES = 5_000;
+
 export async function renderVersionColumn({ prev, curr, commit, path, blameOld, blameNew }) {
   const hl = await getHL();
-  const lang = langFor(path);
+  let lang = langFor(path);
+  const tooBig = curr.length > HIGHLIGHT_MAX_BYTES || curr.split('\n').length > HIGHLIGHT_MAX_LINES;
+  if (tooBig) lang = 'text';
   if (lang !== 'text' && !hl.getLoadedLanguages().includes(lang)) {
-    await hl.loadLanguage(lang);
+    try {
+      await hl.loadLanguage(lang);
+    } catch {
+      // Grammar bundle failed to load (e.g. esm.sh hiccup); render as plaintext.
+      lang = 'text';
+    }
   }
   const { source, tags, blames } = buildPrefixed(prev, curr, blameOld, blameNew);
   const code = hl.codeToHtml(source, {
